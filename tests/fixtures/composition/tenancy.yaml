@@ -1,0 +1,14 @@
+# Composition-fixture tenancy descriptor (ADR-0029).
+#
+# This is NOT this module's tenancy — the module ships none. It is the scratch
+# stand-in for what a composing service owns: `metaphor schema tenancy` reads a
+# descriptor exactly like this one at the SERVICE's root and emits the decorator
+# chain the composition fence probe applies to the module's dev database.
+# Keeping the fixture here makes the probe reproducible from the module repo:
+# emit → apply → probe, no service checkout required.
+version: 1
+scoped_schemas: [auditlog]
+tables:
+  - module: backbone-auditlog
+    table: audit_trails
+    allow_root: false   # an audit row is attributed to the acting org unit, never the tenant root

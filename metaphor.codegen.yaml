@@ -30,9 +30,16 @@ user_owned:
   - "migrations/20260911000100_audit_trails_rls_half_fence.up.sql"
   - "migrations/20260911000100_audit_trails_rls_half_fence.down.sql"
 
-  # Behavior tests (the module's same-transaction / append-only / attribution oracle).
+  # Behavior tests (the module's same-transaction / append-only / attribution
+  # oracle, the tenancy half-fence probe, and the decorated-composition proof).
   - "tests/audit_trail_semantics.rs"
   - "tests/composition_fence_probe.rs"
+  - "tests/decorated_composition_probe.rs"
+
+  # Composition fixtures: the scratch tenancy descriptor (the stand-in for the
+  # composing service's tenancy.yaml), the emitted decorator chain it produces,
+  # and the org-spine stand-in the decorator's kind guard reads.
+  - "tests/fixtures/**"
 
   # Hand-authored module documentation.
   - "docs/**"

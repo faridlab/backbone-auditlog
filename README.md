@@ -115,6 +115,18 @@ each exercised directly and refused), rollback truth, the no-FK promotion
 contract, and GUC attribution. When the database is unreachable the tests
 SKIP (env), they do not fail.
 
+`tests/composition_fence_probe.rs` pins the tenancy half-fence module-side:
+armed RLS flags, zero policies, and a minted non-superuser app role
+default-denied until the decorator composes. `tests/decorated_composition_probe.rs`
+proves the composed shape on a second scratch database
+(`backbone_auditlog_decorated`): the module's migrations plus the decorator
+chain emitted from `tests/fixtures/composition/tenancy.yaml` (the stand-in for
+the composing service's descriptor) over an org-spine fixture — as the app
+role, the fence admits exactly the entitled scope through the module's own
+verbs, the kind guard rejects unknown acting units, and append-only still
+outranks the fence. Prepare that database per the doc comment at the top of
+the probe.
+
 ## Schema
 
 `schema/models/audit_trail.model.yaml` is the single source of truth;
