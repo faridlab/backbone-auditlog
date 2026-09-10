@@ -1,0 +1,135 @@
+# =============================================================================
+# Domain: auditlog
+# Entity: AuditTrail
+# Description: The single central audit row (ADR-0025). One row per audited
+#              data change (trigger-written, the generator's @audited lane)
+#              or per service-emitted event (refusals, security edges) —
+#              written by the transaction that mutated the subject, so a
+#              rolled-back write leaves no audit row behind.
+#
+#              Append-only and read-only: rows are never updated and never
+#              deleted; the HTTP surface exposes generic reads only. A DB
+#              trigger enforces immutability for every role, owner included
+#              (the attendance-clocks precedent).
+#
+#              The promotion contract: NO foreign key into any business
+#              table. subject_type/subject_id are loose text join keys a
+#              later read-model can resolve — the module must stay liftable
+#              to an independent service without rewriting its consumers.
+# =============================================================================
+
+models:
+  - name: AuditTrail
+    collection: audit_trails
+    read_only: true
+    description: "Append-only audit row: who (actor) changed what (subject + diff-only changed) when (occurred_at) how (action) and why (reason), tied to its transaction (txid) and request (correlation_id + request context)"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique identifier"
+
+      occurred_at:
+        type: datetime
+        attributes: ["@required", "@default(now)"]
+        description: "When the event happened (transaction time)"
+
+      event_type:
+        type: AuditEventType
+        attributes: ["@required", "@indexed"]
+        description: "The lane: data_change (trigger-written), refusal, security_edge (service-emitted verbs). Authentication events are deliberately NOT a lane — the control plane owns its own record"
+
+      action:
+        type: string
+        attributes: ["@required", "@max(120)"]
+        description: "trigger rows: insert/update/delete; verb rows: free text naming the event (refused_write, maintenance_gate, ...)"
+
+      actor:
+        type: string
+        attributes: ["@required", "@max(160)"]
+        description: "Who did it, from current_setting('app.actor'); 'system' when unset (manual SQL, cron, migrations)"
+
+      subject_type:
+        type: string?
+        attributes: ["@max(120)"]
+        description: "The audited table's name (loose join key — no FK, the promotion contract)"
+
+      subject_id:
+        type: string?
+        attributes: ["@max(160)", "@exclude_from_foreign_key_check"]
+        description: "The audited row's key as text (uuid keys stringify; composite keys join on a separator)"
+
+      changed:
+        type: json?
+        description: "Diff-only payload: { \"<field>\": {\"from\": old, \"to\": new} }. Full before/after states are not stored"
+
+      reason:
+        type: string?
+        description: "Cascade attribution: names the trigger of a derived/recomputed write (e.g. 'quote total recompute (defect d-123)'), read from app.audit_reason when a service sets it"
+
+      status:
+        type: AuditStatus
+        attributes: ["@required"]
+        description: "success or failure — refusals are failure rows by definition"
+
+      correlation_id:
+        type: string?
+        attributes: ["@max(64)", "@indexed", "@exclude_from_foreign_key_check"]
+        description: "Request correlation: groups a request's audit rows with the structured logs and the X-Correlation-ID response header"
+
+      client_ip:
+        type: string?
+        attributes: ["@max(64)"]
+        description: "Client IP from the request context (X-Forwarded-For aware); NULL outside request scope"
+
+      user_agent:
+        type: string?
+        attributes: ["@max(512)"]
+        description: "User-Agent from the request context; NULL outside request scope"
+
+      http_method:
+        type: string?
+        attributes: ["@max(10)"]
+        description: "HTTP method of the request whose handler mutated/attempted the subject"
+
+      resource_path:
+        type: string?
+        attributes: ["@max(512)"]
+        description: "Request path of the mutating/attempted call"
+
+      txid:
+        type: string
+        attributes: ["@required", "@max(32)"]
+        description: "The transaction id that wrote the row — ties audit rows of one transaction together (txid_current() at write time)"
+
+    indexes:
+      - type: index
+        fields: [subject_type, subject_id]
+      - type: index
+        fields: [event_type, occurred_at]
+      - type: index
+        fields: [actor, occurred_at]
+      - type: index
+        fields: [correlation_id]
+
+enums:
+  - name: AuditEventType
+    description: "The audit lanes (ADR-0025): trigger-written data changes plus the service-emitted verb lanes"
+    variants:
+      - name: data_change
+        description: "A row-level data mutation, captured by the generator's audit trigger"
+        default: true
+      - name: refusal
+        description: "A write the capability/gate layer rejected — service-emitted, leaves no row to diff"
+      - name: security_edge
+        description: "A security-relevant boundary event (tamper attempt, expired token path); service-emitted"
+
+  - name: AuditStatus
+    description: "Outcome of the audited event"
+    variants:
+      - name: success
+        description: "The event happened as attempted"
+        default: true
+      - name: failure
+        description: "The attempt failed / was refused"

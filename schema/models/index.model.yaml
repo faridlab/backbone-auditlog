@@ -1,0 +1,36 @@
+# =============================================================================
+# auditlog Module - Schema Index
+# =============================================================================
+# Version: 2.0
+# Description: Module schema index. `schema: auditlog` gives this module its
+# OWN Postgres schema (migrations emit `CREATE SCHEMA auditlog` and qualify
+# tables as `auditlog.<table>`) — the convention every backbone module
+# follows. Do not remove it.
+#
+# Enum types are created UNQUALIFIED in the `public` schema (the module
+# convention, ratified). The two names below were census-checked against
+# every module migration and schema in the tree before landing (zero exact
+# or stem collisions; the nearest neighbors are the website_/event_/blog_
+# audit-event stems — all distinct from audit_event_type/audit_status).
+# =============================================================================
+
+module: auditlog
+version: 2
+schema: auditlog
+description: "auditlog — the central append-only data-change audit store (ADR-0025): one AuditTrail row per audited change or refusal, written in the transaction that mutated the subject, carrying the actor from the request context (app.actor), a diff-only changed payload, cascade attribution (reason), request correlation, and the promotion contract (no FK into any business table — the module must stay liftable to an independent service without rewriting its consumers). Tenancy-free per the composition-installed ruling (ADR-0029): the composing service installs the org fence."
+
+config:
+  database: postgresql
+  soft_delete: true          # the AuditTrail model opts OUT (append-only,
+                             # hard-immutable — no row is ever updated or
+                             # deleted; the immutability trigger enforces it)
+  audit: true
+  default_timestamps: true
+  generators:
+    disabled:
+      - graphql
+      - grpc
+      - proto
+
+imports:
+  - audit_trail.model.yaml
