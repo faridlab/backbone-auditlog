@@ -30,11 +30,20 @@ user_owned:
   - "migrations/20260911000100_audit_trails_rls_half_fence.up.sql"
   - "migrations/20260911000100_audit_trails_rls_half_fence.down.sql"
 
+  # Hand-authored migration installing the shared data-change capture
+  # function (ADR-0025 trigger lane): the one implementation the generator's
+  # `@audited` trigger migrations call. Diff semantics and GUC reads are
+  # module contract, not schema-derived emission.
+  - "migrations/20260911000200_capture_data_change_function.up.sql"
+  - "migrations/20260911000200_capture_data_change_function.down.sql"
+
   # Behavior tests (the module's same-transaction / append-only / attribution
-  # oracle, the tenancy half-fence probe, and the decorated-composition proof).
+  # oracle, the tenancy half-fence probe, the decorated-composition proof,
+  # and the trigger-lane capture probe).
   - "tests/audit_trail_semantics.rs"
   - "tests/composition_fence_probe.rs"
   - "tests/decorated_composition_probe.rs"
+  - "tests/capture_trigger_probe.rs"
 
   # Composition fixtures: the scratch tenancy descriptor (the stand-in for the
   # composing service's tenancy.yaml), the emitted decorator chain it produces,

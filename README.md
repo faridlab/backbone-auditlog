@@ -21,12 +21,27 @@ Two lanes feed the same table (ADR-0025):
 
 | Lane | Who writes | What it captures |
 |---|---|---|
-| **Data-change** | generator audit triggers (`@audited` on a model, emitted by the schema plugin) | every insert/update/delete on an audited table, with the row diff |
+| **Data-change** | row-level triggers (`@audited` on a model, emitted by the schema plugin, calling this module's `auditlog.capture_data_change()`) | every insert/update/delete on an audited table, with the row diff |
 | **Service-emitted** | this module's write verbs, called by a composing service | what has no row to diff — refused writes, security edges, and any service that wants an explicit row |
 
 Both lanes attribute identically: actor and request context are read from
 the session GUCs inside the INSERT, so a trigger row and a verb row from
 the same request carry the same actor, correlation id, and client facts.
+
+The trigger lane's one shared implementation lives here:
+`auditlog.capture_data_change()` (migration `20260911000200`). The
+generator's `@audited` attribute emits one migration per audited table —
+nothing but a row-level `AFTER INSERT OR UPDATE OR DELETE` trigger calling
+the capture function with the table's primary-key column name as the single
+trigger argument — so the diff semantics and GUC reads are defined once, in
+this module, and every audited table in every composing service attributes
+identically. The INSERT inside the function mirrors the verbs' SQL
+byte-for-byte. Diff shapes: INSERT records the full non-null new image as
+`{field: {"to": v}}`, DELETE the full prior image as `{field: {"from": v}}`
+(the anchors the history read re-anchors on), and UPDATE only the fields
+that changed as `{field: {"from": old, "to": new}}` (`{}` when nothing
+differed). `app.audit_reason` is this lane's cascade channel: set it around
+a cascade and every cascade-written row carries the reason.
 
 ## The write verbs
 
@@ -112,7 +127,12 @@ cargo test --test audit_trail_semantics
 `tests/audit_trail_semantics.rs` is the behavior oracle: the refusal-row
 contract, append-only rejection (attempted, not assumed — UPDATE and DELETE
 each exercised directly and refused), rollback truth, the no-FK promotion
-contract, and GUC attribution. When the database is unreachable the tests
+contract, and GUC attribution. `tests/capture_trigger_probe.rs` proves the
+trigger lane end to end on the same database: a bare psql write with no
+service involved still lands (actor `system`), a batch statement audits one
+row per affected row, DELETE records the full prior image, the GUC context
+(actor, correlation, cascade reason) lands, and a no-op UPDATE records the
+honest empty diff. When the database is unreachable the tests
 SKIP (env), they do not fail.
 
 `tests/composition_fence_probe.rs` pins the tenancy half-fence module-side:
