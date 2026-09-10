@@ -1,0 +1,31 @@
+# Codegen policy for auditlog.
+#
+# `user_owned` globs are hand-written files that live inside generator-owned trees but are
+# NOT schema-derived. `metaphor schema generate [--force]` skips them wholesale (never reads,
+# merges, or deletes them). Everything else in src/ is regenerated from schema/models.
+#
+# Re-exports/declarations that must sit alongside generated code live inside
+# `// <<< CUSTOM ... // END CUSTOM` markers (service/mod.rs, presentation/http/mod.rs, lib.rs)
+# and are preserved by the marker mechanism, not listed here.
+#
+# Add your hand-authored services, handlers, tests, and docs below as you write them.
+
+user_owned:
+  # The same-transaction audit verbs (ADR-0025 service-emitted lane): log_event /
+  # log_refusal / log_security_edge. Hand-written SQL over the caller's executor;
+  # nothing about them is schema-derivable.
+  - "src/application/service/audit_trail_service_custom.rs"
+
+  # Hand-authored migration that enforces append-only on auditlog.audit_trails — a
+  # BEFORE UPDATE OR DELETE trigger raising for every role (the attendance-clocks
+  # immutable precedent). The guard is hand-written logic, not schema-derived
+  # emission, so the pair must never be regenerated or deleted.
+  - "migrations/20260911000000_audit_trails_immutable.up.sql"
+  - "migrations/20260911000000_audit_trails_immutable.down.sql"
+
+  # Behavior tests (the module's same-transaction / append-only / attribution oracle).
+  - "tests/audit_trail_semantics.rs"
+  - "tests/composition_fence_probe.rs"
+
+  # Hand-authored module documentation.
+  - "docs/**"
