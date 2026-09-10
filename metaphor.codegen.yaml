@@ -23,6 +23,13 @@ user_owned:
   - "migrations/20260911000000_audit_trails_immutable.up.sql"
   - "migrations/20260911000000_audit_trails_immutable.down.sql"
 
+  # Hand-authored migration arming the tenancy half-fence (ENABLE + FORCE RLS,
+  # zero policies — ADR-0029): the flags the composing service's decorator
+  # completes. Born tenancy-free, so there is no strip; the posture is armed
+  # from the start.
+  - "migrations/20260911000100_audit_trails_rls_half_fence.up.sql"
+  - "migrations/20260911000100_audit_trails_rls_half_fence.down.sql"
+
   # Behavior tests (the module's same-transaction / append-only / attribution oracle).
   - "tests/audit_trail_semantics.rs"
   - "tests/composition_fence_probe.rs"
