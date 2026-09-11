@@ -13,6 +13,16 @@
 //! lying; calling these with a pool instead of the mutation's transaction
 //! throws that property away and is a caller bug.
 //!
+//! The `_scoped` verbs are the one sanctioned exception: for a layer that runs
+//! inside the request scope but holds no transaction of its own — a gate that
+//! is refusing a write, where the refusal IS the event and there is no
+//! business write to share a transaction with. They take a pool and route the
+//! INSERT through the framework's request-dedicated connection when one is
+//! bound, so the row sees the same session GUCs (actor, correlation, request
+//! fields) the refused request carried. A plain `pool.acquire()` there would
+//! land on a different, unbound connection and attribute the refusal to
+//! `system` — which is a lie about who was refused.
+//!
 //! Actor and request context are read from the session GUCs inside the INSERT,
 //! so verb rows and trigger rows attribute identically:
 //!
@@ -33,6 +43,7 @@
 
 use async_trait::async_trait;
 use serde_json::Value;
+use sqlx::Row;
 use uuid::Uuid;
 
 use crate::application::service::AuditTrailService;
@@ -139,6 +150,78 @@ pub trait AuditTrailWriter {
     ) -> Result<Uuid, sqlx::Error> {
         self.log_event(exec, AuditEvent::security_edge(action, reason)).await
     }
+
+    /// Request-scoped twin of [`AuditTrailWriter::log_event`]: for layers that
+    /// run inside the request scope but hold no transaction — a gate refusing
+    /// a write, where the refusal is the event and there is no business write
+    /// to share a transaction with.
+    ///
+    /// Routes the INSERT through the framework's request-dedicated connection
+    /// when one is bound (so the row reads the actor/correlation/request GUCs
+    /// the refused request carried) and falls back to a plain pooled
+    /// connection otherwise (recording `system` — the honest attribution
+    /// outside request scope). See the module docs for why a fresh pooled
+    /// connection would misattribute here.
+    async fn log_event_scoped(
+        &self,
+        pool: &sqlx::PgPool,
+        event: AuditEvent,
+    ) -> Result<Uuid, sqlx::Error> {
+        let row = backbone_orm::org_scope::fetch_optional_row_scoped(pool, audit_insert(&event))
+            .await?
+            .ok_or(sqlx::Error::RowNotFound)?;
+        row.try_get("id")
+    }
+
+    /// Request-scoped twin of [`AuditTrailWriter::log_refusal`] — the verb a
+    /// capability/gate middleware calls when it refuses a write and wants the
+    /// refusal attributed to the requester, not to `system`.
+    async fn log_refusal_scoped(
+        &self,
+        pool: &sqlx::PgPool,
+        action: impl Into<String> + Send,
+        subject_type: impl Into<String> + Send,
+        subject_id: impl ToString + Send,
+        reason: impl Into<String> + Send,
+    ) -> Result<Uuid, sqlx::Error> {
+        self.log_event_scoped(pool, AuditEvent::refusal(action, subject_type, subject_id, reason))
+            .await
+    }
+}
+
+/// The GUC-reading audit INSERT as a bindable query — the single statement
+/// behind every verb (executor-taking and request-scoped alike), so the two
+/// lanes can never drift apart in what they record.
+fn audit_insert<'q>(
+    event: &'q AuditEvent,
+) -> sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments> {
+    sqlx::query(
+        r#"
+        INSERT INTO auditlog.audit_trails
+            (occurred_at, event_type, action, actor, subject_type, subject_id,
+             changed, reason, status,
+             correlation_id, client_ip, user_agent, http_method, resource_path,
+             txid)
+        VALUES
+            (NOW(), $1, $2,
+             COALESCE(NULLIF(current_setting('app.actor', true), ''), 'system'),
+             $3, $4, $5, $6, $7,
+             NULLIF(current_setting('app.correlation_id', true), ''),
+             NULLIF(current_setting('app.client_ip', true), ''),
+             NULLIF(current_setting('app.user_agent', true), ''),
+             NULLIF(current_setting('app.http_method', true), ''),
+             NULLIF(current_setting('app.resource_path', true), ''),
+             txid_current()::text)
+        RETURNING id
+        "#,
+    )
+    .bind(&event.event_type)
+    .bind(&event.action)
+    .bind(&event.subject_type)
+    .bind(&event.subject_id)
+    .bind(&event.changed)
+    .bind(&event.reason)
+    .bind(&event.status)
 }
 
 #[async_trait]
@@ -148,35 +231,7 @@ impl AuditTrailWriter for AuditTrailService {
         exec: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
         event: AuditEvent,
     ) -> Result<Uuid, sqlx::Error> {
-        let row: (Uuid,) = sqlx::query_as(
-            r#"
-            INSERT INTO auditlog.audit_trails
-                (occurred_at, event_type, action, actor, subject_type, subject_id,
-                 changed, reason, status,
-                 correlation_id, client_ip, user_agent, http_method, resource_path,
-                 txid)
-            VALUES
-                (NOW(), $1, $2,
-                 COALESCE(NULLIF(current_setting('app.actor', true), ''), 'system'),
-                 $3, $4, $5, $6, $7,
-                 NULLIF(current_setting('app.correlation_id', true), ''),
-                 NULLIF(current_setting('app.client_ip', true), ''),
-                 NULLIF(current_setting('app.user_agent', true), ''),
-                 NULLIF(current_setting('app.http_method', true), ''),
-                 NULLIF(current_setting('app.resource_path', true), ''),
-                 txid_current()::text)
-            RETURNING id
-            "#,
-        )
-        .bind(&event.event_type)
-        .bind(&event.action)
-        .bind(&event.subject_type)
-        .bind(&event.subject_id)
-        .bind(&event.changed)
-        .bind(&event.reason)
-        .bind(&event.status)
-        .fetch_one(exec)
-        .await?;
-        Ok(row.0)
+        let row = audit_insert(&event).fetch_one(exec).await?;
+        row.try_get("id")
     }
 }

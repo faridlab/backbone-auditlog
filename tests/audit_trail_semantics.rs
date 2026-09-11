@@ -9,7 +9,11 @@
 //!
 //! Every test runs inside one transaction and rolls back: audit rows are
 //! append-only (the immutability trigger blocks DELETE), so there is no
-//! cleanup path — leaving nothing behind is the only hygiene available.
+//! cleanup path — leaving nothing behind is the only hygiene available. The
+//! one exception is the scoped-attribution test: riding the request-dedicated
+//! connection is the property under test, so its row commits and stays (the
+//! composition-fence probe's accepted cost — a row per run in a scratch
+//! database).
 
 use serde_json::json;
 use sqlx::postgres::PgPoolOptions;
@@ -300,6 +304,108 @@ async fn actor_and_request_context_come_from_the_session_gucs() {
     );
 
     tx.rollback().await.expect("rollback");
+}
+
+/// The scoped verbs must attribute from the request-dedicated connection's
+/// session, not from whatever connection a plain pool checkout happens to
+/// return. This is the property a capability/gate middleware depends on: it
+/// runs inside the request scope, holds no transaction, and a fresh pooled
+/// connection there would record the refusal as `system` — a lie about who
+/// was refused.
+#[tokio::test]
+async fn a_scoped_refusal_attributes_to_the_request_session_not_the_pool() {
+    let Some(pool) = pool().await else { return };
+    let service = AuditTrailService::with_repository(std::sync::Arc::new(
+        backbone_auditlog::infrastructure::persistence::AuditTrailRepository::new(pool.clone()),
+    ));
+
+    // Stand in for the composing service's request middleware: one dedicated
+    // connection carrying the org fence vars plus the audit context vars. The
+    // fence half is what with_org_request_scope binds; the audit half is what
+    // the host framework's audit-context variant adds — bound here through
+    // execute_scoped, the same statements on the same connection. The unit id
+    // is arbitrary: no org-fenced table is touched, only the connection
+    // binding matters.
+    let unit = Uuid::new_v4();
+    let actor = "11111111-2222-3333-4444-555555555555";
+    let outcome = backbone_orm::org_scope::with_org_request_scope(
+        &pool,
+        backbone_orm::org_scope::OrgScope::for_company_unit(unit),
+        async {
+            for (name, value) in [("app.actor", actor), ("app.correlation_id", "corr-scoped-1")] {
+                backbone_orm::org_scope::execute_scoped(
+                    &pool,
+                    sqlx::query("SELECT set_config($1, $2, false)")
+                        .bind(name)
+                        .bind(value),
+                )
+                .await
+                .expect("bind audit context on the request connection");
+            }
+
+            // The misattribution canary: a FRESH pooled checkout at this same
+            // moment sees no actor — any pool-routed insert here would have
+            // attributed 'system'. Session-locality is why the scoped routing
+            // is load-bearing, so it is asserted, not assumed.
+            let unscoped_actor: Option<String> =
+                sqlx::query_scalar("SELECT current_setting('app.actor', true)")
+                    .fetch_one(&pool)
+                    .await
+                    .expect("canary read on a fresh pooled connection");
+            assert!(unscoped_actor.as_deref().unwrap_or("").is_empty(),
+                "audit GUCs must be session-local to the request connection");
+
+            let id = service
+                .log_refusal_scoped(
+                    &pool,
+                    "refused_write",
+                    "selling.quotes",
+                    "0b9e6c9e-5c7b-4a44-9f7f-8f3a2f9a1d10",
+                    "capability gate: actor lacks quote.approve",
+                )
+                .await
+                .expect("scoped refusal writes through the request connection");
+
+            // Reset the audit vars this test bound (the scope wrapper resets
+            // only the fence half) so the pooled connection returns clean.
+            for name in ["app.actor", "app.correlation_id"] {
+                let _ = backbone_orm::org_scope::execute_scoped(
+                    &pool,
+                    sqlx::query("SELECT set_config($1, '', false)").bind(name),
+                )
+                .await;
+            }
+            (id, unscoped_actor)
+        },
+    )
+    .await
+    .expect("open the org request scope");
+
+    // The scoped verb commits on the request connection (no caller
+    // transaction to ride — a refusal has no business write), so the row is
+    // read back AFTER the scope ends, from a plain connection.
+    let row = sqlx::query(
+        r#"SELECT event_type::text, actor, reason, correlation_id, status::text, txid
+           FROM auditlog.audit_trails WHERE id = $1"#,
+    )
+    .bind(outcome.0)
+    .fetch_one(&pool)
+    .await
+    .expect("committed scoped refusal row");
+
+    assert_eq!(row.get::<String, _>("event_type"), "refusal");
+    assert_eq!(row.get::<String, _>("actor"), actor,
+        "the refusal must be attributed to the request session's actor, not 'system'");
+    assert_eq!(row.get::<String, _>("status"), "failure");
+    assert_eq!(
+        row.get::<Option<String>, _>("correlation_id").as_deref(),
+        Some("corr-scoped-1")
+    );
+    assert_eq!(
+        row.get::<Option<String>, _>("reason").as_deref(),
+        Some("capability gate: actor lacks quote.approve")
+    );
+    assert!(!row.get::<String, _>("txid").is_empty());
 }
 
 async fn status_of(tx: &mut sqlx::PgConnection, id: Uuid) -> String {
