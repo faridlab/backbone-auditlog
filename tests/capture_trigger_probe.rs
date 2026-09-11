@@ -243,6 +243,90 @@ async fn trigger_rows_carry_the_guc_context() {
     tx.rollback().await.unwrap();
 }
 
+/// Org-unit inheritance (ADR-0029 composition): the trail row carries the
+/// SUBJECT row's org_unit_id, read from the row image — not from the
+/// session. A decorated composition guards audit_trails with a kind guard,
+/// and the GUC-less system lane (migrations, seeders, psql repairs) sets no
+/// app.acting_unit_id: without the subject channel those writes would be
+/// rejected wholesale. Rows whose subject carries no unit pass NULL through
+/// (the decorator's fill trigger then applies the GUC fallback).
+#[tokio::test]
+async fn trail_rows_inherit_the_subject_rows_org_unit() {
+    let Some(pool) = db().await else { return };
+    let mut tx = pool.begin().await.unwrap();
+    sqlx::raw_sql(FIXTURE_TABLE).execute(&mut *tx).await.unwrap();
+    sqlx::raw_sql(FIXTURE_TRIGGER).execute(&mut *tx).await.unwrap();
+
+    let unit_a = uuid::Uuid::new_v4();
+    sqlx::query("INSERT INTO probes.gadgets (name, qty, org_unit_id) VALUES ('owned', 1, $1)")
+        .bind(unit_a)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let owned = gadget_id(&mut tx, "owned").await;
+    sqlx::query("INSERT INTO probes.gadgets (name, qty) VALUES ('unscoped', 2)")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let unscoped = gadget_id(&mut tx, "unscoped").await;
+
+    let (owned_unit,): (Option<uuid::Uuid>,) = sqlx::query_as(
+        "SELECT org_unit_id FROM auditlog.audit_trails WHERE subject_id = $1",
+    )
+    .bind(&owned)
+    .fetch_one(&mut *tx)
+    .await
+    .unwrap();
+    assert_eq!(
+        owned_unit,
+        Some(unit_a),
+        "the audit row inherits the subject's unit — no GUC was set"
+    );
+
+    let (unscoped_unit,): (Option<uuid::Uuid>,) = sqlx::query_as(
+        "SELECT org_unit_id FROM auditlog.audit_trails WHERE subject_id = $1",
+    )
+    .bind(&unscoped)
+    .fetch_one(&mut *tx)
+    .await
+    .unwrap();
+    assert_eq!(
+        unscoped_unit, None,
+        "a subject without the column passes NULL through"
+    );
+
+    // UPDATE and DELETE inherit from NEW / OLD respectively.
+    sqlx::query("UPDATE probes.gadgets SET qty = 5 WHERE name = 'owned'")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let update_unit: Option<uuid::Uuid> = sqlx::query_scalar(
+        "SELECT org_unit_id FROM auditlog.audit_trails \
+         WHERE subject_id = $1 AND action = 'update'",
+    )
+    .bind(&owned)
+    .fetch_one(&mut *tx)
+    .await
+    .unwrap();
+    assert_eq!(update_unit, Some(unit_a), "UPDATE inherits NEW's unit");
+
+    sqlx::query("DELETE FROM probes.gadgets WHERE name = 'owned'")
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let delete_unit: Option<uuid::Uuid> = sqlx::query_scalar(
+        "SELECT org_unit_id FROM auditlog.audit_trails \
+         WHERE subject_id = $1 AND action = 'delete'",
+    )
+    .bind(&owned)
+    .fetch_one(&mut *tx)
+    .await
+    .unwrap();
+    assert_eq!(delete_unit, Some(unit_a), "DELETE inherits OLD's unit");
+
+    tx.rollback().await.unwrap();
+}
+
 /// An UPDATE that changes nothing still writes its audit row — the write
 /// happened — with the honest empty diff `{}`.
 #[tokio::test]
