@@ -70,6 +70,15 @@ pub struct AuditEvent {
     pub reason: Option<String>,
     /// `success` / `failure` — refusals are failure rows by definition.
     pub status: AuditStatus,
+    /// Who acted, when the caller knows better than the session does.
+    ///
+    /// `None` — the usual case — reads `app.actor` from the session GUC, so
+    /// verb rows and trigger rows attribute identically. A caller that was
+    /// *handed* an actor (a module verb taking `actor: ActorRef`) supplies it
+    /// here rather than discarding it: the session GUC would attribute that
+    /// write to whoever the request belongs to, or to `system` outside a
+    /// request, and both would be false.
+    pub actor: Option<String>,
 }
 
 impl AuditEvent {
@@ -88,6 +97,7 @@ impl AuditEvent {
             subject_id: Some(subject_id.to_string()),
             changed: None,
             reason: Some(reason.into()),
+            actor: None,
             status: AuditStatus::Failure,
         }
     }
@@ -105,6 +115,7 @@ impl AuditEvent {
             subject_id: None,
             changed: None,
             reason: Some(reason.into()),
+            actor: None,
             status: AuditStatus::Failure,
         }
     }
@@ -204,7 +215,7 @@ fn audit_insert<'q>(
              txid)
         VALUES
             (NOW(), $1, $2,
-             COALESCE(NULLIF(current_setting('app.actor', true), ''), 'system'),
+             COALESCE($8, NULLIF(current_setting('app.actor', true), ''), 'system'),
              $3, $4, $5, $6, $7,
              NULLIF(current_setting('app.correlation_id', true), ''),
              NULLIF(current_setting('app.client_ip', true), ''),
@@ -222,6 +233,7 @@ fn audit_insert<'q>(
     .bind(&event.changed)
     .bind(&event.reason)
     .bind(&event.status)
+    .bind(&event.actor)
 }
 
 /// Append one audit row in the caller's transaction, without holding a service.
