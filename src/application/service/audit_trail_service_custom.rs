@@ -235,3 +235,101 @@ impl AuditTrailWriter for AuditTrailService {
         row.try_get("id")
     }
 }
+
+// ─── The history read ─────────────────────────────────────────────────────────
+
+/// Serves one record's recorded changes to the generic CRUD router.
+///
+/// This is the READ side of the capture design the rest of this module writes.
+/// It lives here rather than in `backbone-core` so the framework never learns
+/// that an audit module exists: the composing service builds this and installs
+/// it as an axum `Extension`, and a composition without auditlog simply serves
+/// no history.
+///
+/// Reads ride the request-dedicated connection through the framework's scoped
+/// helper, so the org fence on `auditlog.audit_trails` applies — a caller sees
+/// only the trail rows their entitlement covers, on the same terms as every
+/// other read.
+pub struct AuditHistoryProvider {
+    pool: sqlx::PgPool,
+}
+
+impl AuditHistoryProvider {
+    pub fn new(pool: sqlx::PgPool) -> Self {
+        Self { pool }
+    }
+
+    /// Whether `table` has the capture trigger installed.
+    ///
+    /// Asked of `pg_trigger`, NOT of whether any trail rows exist. A table can
+    /// be audited and genuinely untouched, and answering "not audited" for it
+    /// would be a different — and wrong — statement. This is the whole reason
+    /// the provider can distinguish the two cases the router reports.
+    async fn is_audited(&self, table: &str) -> Result<bool, sqlx::Error> {
+        let q = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS (
+               SELECT 1 FROM pg_trigger t
+               JOIN pg_class c ON c.oid = t.tgrelid
+               JOIN pg_namespace n ON n.oid = c.relnamespace
+               WHERE n.nspname || '.' || c.relname = $1
+                 AND NOT t.tgisinternal
+                 AND t.tgfoid = 'auditlog.capture_data_change'::regproc
+             )",
+        )
+        .bind(table);
+        backbone_orm::company_scope::fetch_one_scalar_scoped(&self.pool, q).await
+    }
+}
+
+#[async_trait]
+impl backbone_core::http::HistoryProvider for AuditHistoryProvider {
+    async fn history(
+        &self,
+        table: &str,
+        id: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Option<Vec<backbone_core::http::HistoryEntry>>, String> {
+        if !self.is_audited(table).await.map_err(|e| e.to_string())? {
+            return Ok(None);
+        }
+
+        // Newest first: a history tab is read from the top. `subject_type` is
+        // the schema-qualified table the capture trigger writes, which is the
+        // same string the calling repository names itself by.
+        let q = sqlx::query(
+            "SELECT occurred_at, action, actor, changed, reason, correlation_id
+               FROM auditlog.audit_trails
+              WHERE subject_type = $1 AND subject_id = $2
+              ORDER BY occurred_at DESC
+              LIMIT $3 OFFSET $4",
+        )
+        .bind(table)
+        .bind(id)
+        .bind(limit as i64)
+        .bind(offset as i64);
+
+        let rows = backbone_orm::company_scope::fetch_all_rows_scoped(&self.pool, q)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let entries = rows
+            .iter()
+            .map(|r| backbone_core::http::HistoryEntry {
+                occurred_at: r
+                    .try_get::<chrono::DateTime<chrono::Utc>, _>("occurred_at")
+                    .map(|t| t.to_rfc3339())
+                    .unwrap_or_default(),
+                action: r.try_get::<String, _>("action").unwrap_or_default(),
+                actor: r.try_get::<String, _>("actor").unwrap_or_default(),
+                changed: r
+                    .try_get::<Value, _>("changed")
+                    .unwrap_or(Value::Object(Default::default())),
+                reason: r.try_get::<Option<String>, _>("reason").ok().flatten(),
+                correlation_id: r.try_get::<Option<String>, _>("correlation_id").ok().flatten(),
+            })
+            .collect();
+
+        Ok(Some(entries))
+    }
+}
