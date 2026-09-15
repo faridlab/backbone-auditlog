@@ -1,6 +1,6 @@
 [package]
 name = "backbone-auditlog"
-version = "0.1.10"
+version = "0.1.11"
 edition = "2021"
 description = "Minimal Backbone Framework module skeleton"
 
