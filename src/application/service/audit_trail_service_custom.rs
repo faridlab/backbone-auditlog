@@ -224,6 +224,26 @@ fn audit_insert<'q>(
     .bind(&event.status)
 }
 
+/// Append one audit row in the caller's transaction, without holding a service.
+///
+/// The same write [`AuditTrailWriter::log_event`] performs — it ignores `self`
+/// entirely — exposed for the places that audit from a repository or a raw-sqlx
+/// path and have a transaction but no service to reach for. Consolidating the
+/// per-module `*_audit_log` tables onto this one needs exactly that: those
+/// writes happen deep in repository code, and threading a service through them
+/// would be a larger change than the consolidation itself.
+///
+/// Takes the caller's executor, so the audit row commits with the business
+/// write and dies with it on rollback. Calling this with a pool instead of the
+/// mutation's transaction throws that property away and is a caller bug.
+pub async fn append(
+    exec: impl sqlx::Executor<'_, Database = sqlx::Postgres>,
+    event: AuditEvent,
+) -> Result<Uuid, sqlx::Error> {
+    let row = audit_insert(&event).fetch_one(exec).await?;
+    row.try_get("id")
+}
+
 #[async_trait]
 impl AuditTrailWriter for AuditTrailService {
     async fn log_event(

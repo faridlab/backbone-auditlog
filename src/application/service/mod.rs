@@ -12,7 +12,7 @@ pub mod audit_trail_service;
 // <<< CUSTOM
 // The same-transaction audit verbs (ADR-0025 service-emitted lane).
 pub mod audit_trail_service_custom;
-pub use audit_trail_service_custom::{AuditEvent, AuditHistoryProvider, AuditTrailWriter};
+pub use audit_trail_service_custom::{append, AuditEvent, AuditHistoryProvider, AuditTrailWriter};
 // END CUSTOM
 
 pub use audit_trail_service::AuditTrailService;
