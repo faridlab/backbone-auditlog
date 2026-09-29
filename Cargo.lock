@@ -197,7 +197,7 @@ dependencies = [
 
 [[package]]
 name = "backbone-auditlog"
-version = "0.1.23"
+version = "0.1.25"
 dependencies = [
  "anyhow",
  "async-trait",

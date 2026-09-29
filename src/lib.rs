@@ -26,6 +26,17 @@ pub mod seeders;
 pub mod exports;
 
 // Re-exports for convenience - Domain entities
+/// This module's migrations directory, resolved at ITS OWN compile time.
+///
+/// Audited modules cannot bring a scratch database up from their own
+/// migrations alone: the capture path casts to `audit_event_type` and writes
+/// `auditlog.audit_trails`, so the audit schema must exist first. Dependent
+/// test harnesses apply this directory BEFORE their own migrations — the
+/// const points into the cargo checkout of whatever tag the dependent
+/// pinned, so it is always the exact revision in the graph, never a sibling
+/// working tree.
+pub const MIGRATIONS_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/migrations");
+
 pub use domain::entity::*;
 
 // Re-exports - Infrastructure
@@ -149,5 +160,19 @@ impl AuditlogModuleBuilder {
 impl Default for AuditlogModuleBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod migration_dir_tests {
+    /// The published directory must actually exist in the built tree — a
+    /// broken const fails here, not in a dependent's confusing scratch boot.
+    #[test]
+    fn migrations_dir_exists() {
+        assert!(
+            std::path::Path::new(super::MIGRATIONS_DIR).is_dir(),
+            "{} is not a directory",
+            super::MIGRATIONS_DIR
+        );
     }
 }
