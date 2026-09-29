@@ -150,3 +150,12 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+## Dependent scratch databases
+
+Modules whose tables are audited cannot boot a scratch database from their
+own migrations alone: they need this module's schema (the `audit_event_type`
+enum and `auditlog.audit_trails`) applied FIRST. `pub const MIGRATIONS_DIR`
+in the crate root publishes this module's migrations directory, resolved at
+its own compile time, so dependent harnesses apply the exact pinned
+revision without knowing where a checkout lives.
