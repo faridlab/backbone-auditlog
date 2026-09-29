@@ -124,6 +124,7 @@ fn event(subject_id: String) -> AuditEvent {
         changed: None,
         reason: Some("decorated fence probe".into()),
         status: AuditStatus::Success,
+        actor: None,
     }
 }
 

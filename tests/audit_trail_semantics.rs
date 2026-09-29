@@ -137,6 +137,7 @@ async fn append_only_is_enforced_update_and_delete_are_attempted() {
                 changed: Some(json!({"status": {"from": "draft", "to": "approved"}})),
                 reason: None,
                 status: AuditStatus::Success,
+                actor: None,
             },
         )
         .await
@@ -165,6 +166,7 @@ async fn append_only_is_enforced_update_and_delete_are_attempted() {
                 changed: None,
                 reason: None,
                 status: AuditStatus::Success,
+                actor: None,
             },
         )
         .await
@@ -201,6 +203,7 @@ async fn a_rolled_back_transaction_leaves_no_audit_row() {
                 changed: Some(json!({"qty": {"from": 5, "to": 3}})),
                 reason: None,
                 status: AuditStatus::Success,
+                actor: None,
             },
         )
         .await
@@ -285,6 +288,7 @@ async fn actor_and_request_context_come_from_the_session_gucs() {
                 changed: Some(json!({"status": {"from": "draft", "to": "sent"}})),
                 reason: None,
                 status: AuditStatus::Success,
+                actor: None,
             },
         )
         .await
