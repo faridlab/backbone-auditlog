@@ -47,7 +47,7 @@ pub mod individual {
     use super::*;
 
     pub fn audit_trail_routes(service: Arc<AuditTrailService>) -> Router {
-        create_audit_trail_routes(service)
+        create_audit_trail_read_routes(service)
     }
 
 }

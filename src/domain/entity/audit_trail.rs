@@ -278,6 +278,7 @@ impl backbone_orm::EntityRepoMeta for AuditTrail {
         m.insert("id".to_string(), "uuid".to_string());
         m.insert("event_type".to_string(), "audit_event_type".to_string());
         m.insert("status".to_string(), "audit_status".to_string());
+        m.insert("occurred_at".to_string(), "timestamptz".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {

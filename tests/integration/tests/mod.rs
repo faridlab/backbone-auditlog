@@ -9,5 +9,4 @@ pub mod crud_test_base;
 pub mod audit_trail_api_test;
 
 // Re-exports for convenience
-pub use crud_test_base::*;
 pub use audit_trail_api_test::*;

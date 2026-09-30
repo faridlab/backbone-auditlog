@@ -118,6 +118,7 @@ async fn plain_role_is_default_denied_until_the_decorator_composes() {
         .log_event(
             &admin,
             AuditEvent {
+                actor: Some("tenancy-posture-probe".into()),
                 event_type: AuditEventType::DataChange,
                 action: "insert".into(),
                 subject_type: Some("probes.fence".into()),
