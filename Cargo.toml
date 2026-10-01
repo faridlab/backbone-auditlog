@@ -1,8 +1,8 @@
 [package]
 name = "backbone-auditlog"
-version = "0.1.28"
+version = "0.1.29"
 edition = "2021"
-description = "Minimal Backbone Framework module skeleton"
+description = "Append-only data-change audit trail for Postgres: the audit_trails table and the capture function that row triggers call"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/faridlab/backbone-auditlog"
 exclude = [".claude/", ".github/", "graphify-out/"]
