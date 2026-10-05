@@ -341,7 +341,7 @@ impl backbone_core::http::HistoryProvider for AuditHistoryProvider {
         .bind(limit as i64)
         .bind(offset as i64);
 
-        let rows = backbone_orm::company_scope::fetch_all_rows_scoped(&self.pool, q)
+        let rows = backbone_orm::org_scope::fetch_all_rows_scoped(&self.pool, q)
             .await
             .map_err(|e| e.to_string())?;
 
