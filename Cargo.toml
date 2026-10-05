@@ -1,6 +1,6 @@
 [package]
 name = "backbone-auditlog"
-version = "0.1.29"
+version = "0.1.30"
 edition = "2021"
 description = "Append-only data-change audit trail for Postgres: the audit_trails table and the capture function that row triggers call"
 license = "MIT OR Apache-2.0"
