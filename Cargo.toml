@@ -1,6 +1,6 @@
 [package]
 name = "backbone-auditlog"
-version = "0.1.30"
+version = "0.2.0"
 edition = "2021"
 description = "Append-only data-change audit trail for Postgres: the audit_trails table and the capture function that row triggers call"
 license = "MIT OR Apache-2.0"
@@ -20,10 +20,10 @@ path = "src/lib.rs"
 # or `rev = "<commit-sha>"`. Cargo dedupes the git fetch — the repo is only
 # cloned once even though four crates reference it.
 # -----------------------------------------------------------------------------
-backbone-core = { version = "2.7.35", features = ["postgres"] }
-backbone-orm = { version = "2.7.35" }
-backbone-auth = { version = "2.7.35" }
-backbone-messaging = { version = "2.7.35" }
+backbone-core = { version = "3.0.0", features = ["postgres"] }
+backbone-orm = { version = "3.0.0" }
+backbone-auth = { version = "3.0.0" }
+backbone-messaging = { version = "3.0.0" }
 
 # Core async runtime and serialization
 tokio = { version = "1.0", features = ["full"] }
