@@ -9,12 +9,8 @@ pub use error::{ServiceError, ServiceResult};
 
 pub mod audit_trail_service;
 
-// <<< CUSTOM
-// END CUSTOM
 
 pub use audit_trail_service::AuditTrailService;
-// <<< CUSTOM
-// END CUSTOM
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

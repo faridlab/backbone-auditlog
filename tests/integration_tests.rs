@@ -23,3 +23,4 @@ async fn test_audit_trail_api() {
         panic!("{} tests failed", failed.len());
     }
 }
+

@@ -26,9 +26,5 @@ pub fn audit_trail_validator() -> AuditTrailValidator {
         .rule(OptionalNotBlank::new("http_method", |e: &AuditTrail| e.http_method.as_deref()))
         .rule(OptionalNotBlank::new("resource_path", |e: &AuditTrail| e.resource_path.as_deref()))
         .rule(RequiredString::new("txid", |e: &AuditTrail| &e.txid))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

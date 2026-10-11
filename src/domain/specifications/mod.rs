@@ -8,5 +8,3 @@ pub use backbone_core::{Specification, AndSpecification, OrSpecification, NotSpe
 
 pub mod audit_trail_specification;
 
-// <<< CUSTOM
-// END CUSTOM

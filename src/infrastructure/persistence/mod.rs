@@ -7,8 +7,6 @@
 mod audit_trail_repository;
 
 // Custom persistence modules
-// <<< CUSTOM
-// END CUSTOM
 
 // Re-exports
 pub use audit_trail_repository::AuditTrailRepository;
@@ -21,5 +19,3 @@ pub use backbone_orm::repository::{
 };
 
 // Re-export custom persistence types
-// <<< CUSTOM
-// END CUSTOM

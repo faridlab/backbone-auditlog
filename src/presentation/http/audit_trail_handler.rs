@@ -187,3 +187,4 @@ pub fn create_protected_audit_trail_routes<A: AuthMiddleware + Send + Sync + 'st
             }
         }))
 }
+

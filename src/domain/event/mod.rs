@@ -8,5 +8,3 @@ pub mod audit_trail_event_handlers;
 pub use audit_trail_events::{AuditTrailEvent, AuditTrailEventPublisher, NoopAuditTrailEventPublisher};
 pub use audit_trail_event_handlers::AuditTrailEventHandler;
 
-// <<< CUSTOM
-// END CUSTOM

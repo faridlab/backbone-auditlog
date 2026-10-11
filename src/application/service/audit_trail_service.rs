@@ -32,5 +32,3 @@ pub type AuditTrailService = GenericCrudService<
     AuditTrailRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -6,5 +6,3 @@ pub mod audit_trail_domain_policy;
 
 pub use audit_trail_domain_policy::AuditTrailDomainPolicy;
 
-// <<< CUSTOM
-// END CUSTOM

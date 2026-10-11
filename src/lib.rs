@@ -24,8 +24,6 @@ pub mod application;
 pub mod presentation;
 pub mod seeders;
 pub mod exports;
-// <<< CUSTOM MODULES
-// END CUSTOM
 
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
@@ -54,8 +52,6 @@ use sqlx::PgPool;
 /// ```
 pub struct AuditlogModule {
     pub(crate) audit_trail_service: Arc<AuditTrailService>,
-    // <<< CUSTOM FIELDS
-    // END CUSTOM
 }
 
 impl AuditlogModule {
@@ -102,15 +98,11 @@ impl AuditlogModule {
             .merge(create_audit_trail_read_routes(self.audit_trail_service.clone()))
     }
 
-    // <<< CUSTOM METHODS
-    // END CUSTOM
 }
 
 /// Builder for AuditlogModule
 pub struct AuditlogModuleBuilder {
     db_pool: Option<PgPool>,
-    // <<< CUSTOM BUILDER FIELDS
-    // END CUSTOM
 }
 
 impl AuditlogModuleBuilder {
@@ -118,8 +110,6 @@ impl AuditlogModuleBuilder {
     pub fn new() -> Self {
         Self {
             db_pool: None,
-            // <<< CUSTOM BUILDER DEFAULTS
-            // END CUSTOM
         }
     }
 
@@ -129,8 +119,6 @@ impl AuditlogModuleBuilder {
         self
     }
 
-    // <<< CUSTOM - custom builder methods
-    // END CUSTOM
 
     /// Build the module with configured dependencies
     pub fn build(self) -> anyhow::Result<AuditlogModule> {
@@ -141,13 +129,9 @@ impl AuditlogModuleBuilder {
         let audit_trail_repository = Arc::new(AuditTrailRepository::new(db_pool.clone()));
         let audit_trail_service = Arc::new(AuditTrailService::with_repository(audit_trail_repository.clone()));
 
-        // <<< CUSTOM
-        // END CUSTOM
 
         Ok(AuditlogModule {
             audit_trail_service,
-            // <<< CUSTOM
-            // END CUSTOM
         })
     }
 }

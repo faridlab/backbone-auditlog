@@ -9,5 +9,3 @@ pub mod audit_trail_validator;
 
 pub use audit_trail_validator::{AuditTrailValidator, audit_trail_validator};
 
-// <<< CUSTOM
-// END CUSTOM

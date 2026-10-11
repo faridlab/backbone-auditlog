@@ -7,10 +7,6 @@
 
 pub mod audit_trail_handler;
 
-// <<< CUSTOM
-// END CUSTOM
 
 // Re-exports
 pub use audit_trail_handler::{create_audit_trail_routes, create_audit_trail_read_routes, create_audit_trail_write_routes};
-// <<< CUSTOM
-// END CUSTOM
