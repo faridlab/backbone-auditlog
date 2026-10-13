@@ -1,0 +1,14 @@
+-- Down: drop the declared rule constraints for auditlog module
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_txid_max_length__max_length;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_txid_required__required;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_resource_path_max_length__max_length;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_http_method_max_length__max_length;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_user_agent_max_length__max_length;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_client_ip_max_length__max_length;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_correlation_id_max_length__max_length;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_subject_id_max_length__max_length;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_subject_type_max_length__max_length;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_actor_max_length__max_length;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_actor_required__required;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_action_max_length__max_length;
+ALTER TABLE IF EXISTS auditlog.audit_trails DROP CONSTRAINT IF EXISTS ck_audit_trails_action_required__required;
