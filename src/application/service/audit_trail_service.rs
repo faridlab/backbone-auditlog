@@ -56,7 +56,7 @@ impl backbone_core::write_guard::WriteGuard<AuditTrail> for AuditTrailRowRules {
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
-        let mut shadow = Vec::new();
+        let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `action_required` (@required on AuditTrail.action)
         if (create || (update && r::changed(old.as_ref(), row, &["action"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "action")), r::not(r::is_empty(r::trim(r::field(row, "action")))))) {
@@ -64,7 +64,7 @@ impl backbone_core::write_guard::WriteGuard<AuditTrail> for AuditTrailRowRules {
         }
         // `action_max_length` (@max(120) on AuditTrail.action)
         if (create || (update && r::changed(old.as_ref(), row, &["action"]))) && !r::holds(&r::le(r::length(r::field(row, "action")), r::Val::Num(120.0_f64))) {
-            shadow.push(Violation::new("action", "max_length", "action must be at most 120 characters").with_param("max", 120_i64));
+            refuse.push(Violation::new("action", "max_length", "action must be at most 120 characters").with_param("max", 120_i64));
         }
         // `actor_required` (@required on AuditTrail.actor)
         if (create || (update && r::changed(old.as_ref(), row, &["actor"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "actor")), r::not(r::is_empty(r::trim(r::field(row, "actor")))))) {
@@ -72,35 +72,35 @@ impl backbone_core::write_guard::WriteGuard<AuditTrail> for AuditTrailRowRules {
         }
         // `actor_max_length` (@max(160) on AuditTrail.actor)
         if (create || (update && r::changed(old.as_ref(), row, &["actor"]))) && !r::holds(&r::le(r::length(r::field(row, "actor")), r::Val::Num(160.0_f64))) {
-            shadow.push(Violation::new("actor", "max_length", "actor must be at most 160 characters").with_param("max", 160_i64));
+            refuse.push(Violation::new("actor", "max_length", "actor must be at most 160 characters").with_param("max", 160_i64));
         }
         // `subject_type_max_length` (@max(120) on AuditTrail.subject_type)
         if (create || (update && r::changed(old.as_ref(), row, &["subject_type"]))) && !r::holds(&r::le(r::length(r::field(row, "subject_type")), r::Val::Num(120.0_f64))) {
-            shadow.push(Violation::new("subject_type", "max_length", "subject_type must be at most 120 characters").with_param("max", 120_i64));
+            refuse.push(Violation::new("subject_type", "max_length", "subject_type must be at most 120 characters").with_param("max", 120_i64));
         }
         // `subject_id_max_length` (@max(160) on AuditTrail.subject_id)
         if (create || (update && r::changed(old.as_ref(), row, &["subject_id"]))) && !r::holds(&r::le(r::length(r::field(row, "subject_id")), r::Val::Num(160.0_f64))) {
-            shadow.push(Violation::new("subject_id", "max_length", "subject_id must be at most 160 characters").with_param("max", 160_i64));
+            refuse.push(Violation::new("subject_id", "max_length", "subject_id must be at most 160 characters").with_param("max", 160_i64));
         }
         // `correlation_id_max_length` (@max(64) on AuditTrail.correlation_id)
         if (create || (update && r::changed(old.as_ref(), row, &["correlation_id"]))) && !r::holds(&r::le(r::length(r::field(row, "correlation_id")), r::Val::Num(64.0_f64))) {
-            shadow.push(Violation::new("correlation_id", "max_length", "correlation_id must be at most 64 characters").with_param("max", 64_i64));
+            refuse.push(Violation::new("correlation_id", "max_length", "correlation_id must be at most 64 characters").with_param("max", 64_i64));
         }
         // `client_ip_max_length` (@max(64) on AuditTrail.client_ip)
         if (create || (update && r::changed(old.as_ref(), row, &["client_ip"]))) && !r::holds(&r::le(r::length(r::field(row, "client_ip")), r::Val::Num(64.0_f64))) {
-            shadow.push(Violation::new("client_ip", "max_length", "client_ip must be at most 64 characters").with_param("max", 64_i64));
+            refuse.push(Violation::new("client_ip", "max_length", "client_ip must be at most 64 characters").with_param("max", 64_i64));
         }
         // `user_agent_max_length` (@max(512) on AuditTrail.user_agent)
         if (create || (update && r::changed(old.as_ref(), row, &["user_agent"]))) && !r::holds(&r::le(r::length(r::field(row, "user_agent")), r::Val::Num(512.0_f64))) {
-            shadow.push(Violation::new("user_agent", "max_length", "user_agent must be at most 512 characters").with_param("max", 512_i64));
+            refuse.push(Violation::new("user_agent", "max_length", "user_agent must be at most 512 characters").with_param("max", 512_i64));
         }
         // `http_method_max_length` (@max(10) on AuditTrail.http_method)
         if (create || (update && r::changed(old.as_ref(), row, &["http_method"]))) && !r::holds(&r::le(r::length(r::field(row, "http_method")), r::Val::Num(10.0_f64))) {
-            shadow.push(Violation::new("http_method", "max_length", "http_method must be at most 10 characters").with_param("max", 10_i64));
+            refuse.push(Violation::new("http_method", "max_length", "http_method must be at most 10 characters").with_param("max", 10_i64));
         }
         // `resource_path_max_length` (@max(512) on AuditTrail.resource_path)
         if (create || (update && r::changed(old.as_ref(), row, &["resource_path"]))) && !r::holds(&r::le(r::length(r::field(row, "resource_path")), r::Val::Num(512.0_f64))) {
-            shadow.push(Violation::new("resource_path", "max_length", "resource_path must be at most 512 characters").with_param("max", 512_i64));
+            refuse.push(Violation::new("resource_path", "max_length", "resource_path must be at most 512 characters").with_param("max", 512_i64));
         }
         // `txid_required` (@required on AuditTrail.txid)
         if (create || (update && r::changed(old.as_ref(), row, &["txid"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "txid")), r::not(r::is_empty(r::trim(r::field(row, "txid")))))) {
@@ -108,7 +108,7 @@ impl backbone_core::write_guard::WriteGuard<AuditTrail> for AuditTrailRowRules {
         }
         // `txid_max_length` (@max(32) on AuditTrail.txid)
         if (create || (update && r::changed(old.as_ref(), row, &["txid"]))) && !r::holds(&r::le(r::length(r::field(row, "txid")), r::Val::Num(32.0_f64))) {
-            shadow.push(Violation::new("txid", "max_length", "txid must be at most 32 characters").with_param("max", 32_i64));
+            refuse.push(Violation::new("txid", "max_length", "txid must be at most 32 characters").with_param("max", 32_i64));
         }
         GuardOutcome { refuse, shadow }
     }
