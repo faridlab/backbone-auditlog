@@ -11,6 +11,7 @@ pub mod audit_trail_service;
 
 
 pub use audit_trail_service::AuditTrailService;
+pub use audit_trail_service::AuditTrailRowRules;
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

@@ -127,7 +127,7 @@ impl AuditlogModuleBuilder {
 
         // AuditTrail service
         let audit_trail_repository = Arc::new(AuditTrailRepository::new(db_pool.clone()));
-        let audit_trail_service = Arc::new(AuditTrailService::with_repository(audit_trail_repository.clone()));
+        let audit_trail_service = Arc::new(AuditTrailService::with_repository(audit_trail_repository.clone()).with_guard(Arc::new(crate::application::service::AuditTrailRowRules)));
 
 
         Ok(AuditlogModule {
