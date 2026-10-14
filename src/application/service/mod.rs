@@ -13,5 +13,13 @@ pub mod audit_trail_service;
 pub use audit_trail_service::AuditTrailService;
 pub use audit_trail_service::AuditTrailRowRules;
 
+/// A `AuditTrailService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_audit_trail_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::AuditTrailRepository>,
+) -> AuditTrailService {
+    AuditTrailService::with_repository(repository).with_guard(std::sync::Arc::new(AuditTrailRowRules))
+}
+
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");
