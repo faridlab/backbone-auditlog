@@ -30,7 +30,7 @@ use crate::domain::entity::AuditStatus;
 #[serde(rename_all = "camelCase")]
 pub struct CreateAuditTrailDto {
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01T00:00:00Z"))]
-    #[serde(alias = "occurred_at")]
+    #[serde(default = "default_create_audit_trail_occurred_at", alias = "occurred_at")]
     pub occurred_at: DateTime<Utc>,
     #[serde(alias = "event_type")]
     pub event_type: AuditEventType,
@@ -59,6 +59,10 @@ pub struct CreateAuditTrailDto {
     pub resource_path: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub txid: String,
+}
+
+fn default_create_audit_trail_occurred_at() -> DateTime<Utc> {
+    Utc::now()
 }
 
 // =============================================================================
@@ -128,26 +132,26 @@ pub struct PatchAuditTrailDto {
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub actor: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "subject_type")]
-    pub subject_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "subject_id")]
-    pub subject_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub changed: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "subject_type")]
+    pub subject_type: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "subject_id")]
+    pub subject_id: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option")]
+    pub changed: Option<Option<serde_json::Value>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option")]
+    pub reason: Option<Option<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<AuditStatus>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "correlation_id")]
-    pub correlation_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "client_ip")]
-    pub client_ip: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "user_agent")]
-    pub user_agent: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "http_method")]
-    pub http_method: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", alias = "resource_path")]
-    pub resource_path: Option<String>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "correlation_id")]
+    pub correlation_id: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "client_ip")]
+    pub client_ip: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "user_agent")]
+    pub user_agent: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "http_method")]
+    pub http_method: Option<Option<String>>,
+    #[serde(default, deserialize_with = "crate::presentation::dto::double_option", alias = "resource_path")]
+    pub resource_path: Option<Option<String>>,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub txid: Option<String>,
@@ -367,12 +371,4 @@ impl backbone_core::ApplyUpdateDto<UpdateAuditTrailDto> for AuditTrail {
         Ok(self)
     }
 }
-
-// =============================================================================
-// Custom DTOs
-// =============================================================================
-
-// Add custom DTOs specific to AuditTrail here.
-// This section will be preserved during regeneration.
-// >>> END CUSTOM DTOs
 

@@ -9,4 +9,4 @@ pub mod audit_trail_handler;
 
 
 // Re-exports
-pub use audit_trail_handler::{create_audit_trail_routes, create_audit_trail_read_routes, create_audit_trail_write_routes};
+pub use audit_trail_handler::{create_audit_trail_routes, create_audit_trail_read_routes, create_audit_trail_write_routes, audit_trail_permissions};
